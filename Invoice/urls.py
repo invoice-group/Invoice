@@ -19,6 +19,5 @@ from web import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('login/', views.Login),
     path('web/', include('web.web_urls')),
 ]

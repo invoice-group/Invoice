@@ -12,12 +12,11 @@
         <link rel="stylesheet" href="css/mui.min.css" />
         <link href="css/iconfont.css" rel="stylesheet" />
         <link href="css/login.css" rel="stylesheet" />
-         <script src="js/login.js"></script>
     </head>
     <body>
         <header class="mui-bar mui-bar-nav" style="background-color:#33CCFF ;">
             <a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
-            <h1 class="mui-title">登录</h1>
+            <h1 class="mui-title">注册</h1>
 	    </header>
         <div class="mui-content">
   	      <form class="mui-input-group">
@@ -27,69 +26,27 @@
                 </div>
                 <div class="mui-input-row mui-password">
                     <label>密码:</label>
-                    <input id='password' type="password" class="mui-input-password" placeholder="请输入登录密码">
+                    <input id='password' type="password" class="mui-input-password" placeholder="请设置登录密码">
+                    <span class="mui-icon mui-icon-eye"></span>
+                </div>
+                <div class="mui-input-row mui-password">
+                    <label>确认密码:</label>
+                    <input id="VerificationCode" type="password" class="mui-input-password" placeholder="请重新输入登录密码">
                     <span class="mui-icon mui-icon-eye"></span>
                 </div>
             </form>
             <div class="mui-content-padded">
-                <button id='login' class="mui-btn mui-btn-block mui-btn-primary">登录</button>
+                <button id='reg' class="mui-btn mui-btn-block mui-btn-primary">确认注册</button>
             </div>
             <div class="mui-content-padded">
-                <button id='reg' class="mui-btn mui-btn-block mui-btn-primary">去注册</button>
+                <p>为了账号安全，设置密码不要少于6位，我们不会泄露你的手机号码，不会收取任何费用！</p>
             </div>
         </div>
 
         <script src="js/mui.min.js"></script>
-       
         <script src="js/jquery-3.3.1.min.js"></script>
         <script>
             mui.init();
-mui('.mui-content').on('tap', '#reg', function() {
-	console.log("active");
-	mui.openWindow({
-    url:"reg.html",
-    id:"reg",
-    styles:{
-
-    },
-    extras:{
-    },
-    createNew:false,//是否重复创建同样id的webview，默认为false:不重复创建，直接显示
-    show:{
-      autoShow:true,//页面loaded事件发生后自动显示，默认为true
-      
-    },
-    waiting:{
-      autoShow:true,//自动显示等待框，默认为true
-      title:'正在加载...',//等待对话框上显示的提示内容
-      options:{
-      }
-    }
-})
-	//mui.trigger(document.getElementByClassName("mui-content"),'swiperight');
-});
-mui('.mui-content').on('tap', '#login', function() {
-	$.ajax({
-		type: 'POST',
-		//async:false,
-		dataType: 'json',
-		url: 'http://localhost:8083/api/login',
-		data: {
-			type: "phone",
-			user: document.getElementById('account').value,
-			password: document.getElementById('password').value,
-		},
-		success: function (response) {
-			if(response.success) {
-				return console.log(response.mes);
-			}
-			else {
-				return console.log(response.mes);
-			}
-		}
-	})
-});
-
         </script>
     </body>
 </html>
