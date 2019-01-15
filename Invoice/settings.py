@@ -25,7 +25,7 @@ SECRET_KEY = ')rpbx-02=w79e^ticlf^$m7ou7t5nl5dw@)njhyttx*a=7c=o_'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -44,7 +44,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+#    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -71,18 +71,40 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Invoice.wsgi.application'
 
+TEMPLATE_LOADERS = (
+   'django.template.loaders.filesystem.Loader',
+   'django.template.loaders.app_directories.Loader',
+   'django.template.loaders.eggs.Loader',
+)
 
+TEMPLATE_CONTEXT_PROCESSORS = (
+   'django.contrib.auth.context_processors.auth',
+   'django.core.context_processors.debug',
+   'django.core.context_processors.i18n',
+   'django.core.context_processors.media',
+   'django.core.context_processors.static',
+   'django.core.context_processors.request',
+   'django.contrib.messages.context_processors.messages'
+)
+
+STATICFILES_FINDERS = (
+   'django.contrib.staticfiles.finders.FileSystemFinder',
+   'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+   'dajaxice.finders.DajaxiceFinder',
+)
+
+DAJAXICE_MEDIA_PREFIX = 'dajaxice'
 # Database
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
 DATABASES = {
    'default': {
       'ENGINE': 'django.db.backends.mysql',
-      'NAME': 'mysql',
+      'NAME': 'Invoice',
       'USER': 'root',
-      'PASSWORD': '123',
-      'HOST': '',
-      'PORT': '',
+      'PASSWORD': '19940614',
+      'HOST': 'localhost',
+      'PORT': '3306',
    }
 }
 
