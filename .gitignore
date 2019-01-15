@@ -1,4 +1,4 @@
 *.idea
 *.git
-/venv/*
-/*/__pycache__
+/venv
+*/__pycache__
