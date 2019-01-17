@@ -17,58 +17,97 @@ def test(request):
 #注册
 def register(request):
     if request.method == 'POST':
-        user = request.POST.get('user')
+        user = request.POST.get('user_id')
         password = request.POST.get('password')
         phone = request.POST.get('phone')
-        admin = request.POST.get('admin')
+        check1 = User.objects.filter(user_id=user)
+        check2 = User.objects.filter(user_phone=phone)
+        if check1:
+            result = {"success":False, "mes":"user_id"}
+            JsonResponse(result)
+        elif check2:
+            result = {"success": False, "mes": "phone"}
+            JsonResponse(result)
+        else:
+            user = User(
+                user_id=user,
+                user_password=password,
+                user_phone=phone
+            )
+            user.save()
+            result = {"success": True, "mes": "注册成功"}
+            JsonResponse(result)
 
-        user = User(
-            user_id=  user,
-            user_password= password,
-            user_phone= phone,
-            user_admin= admin
-        )
-        user.save()
-        return JsonResponse("注册成功")
-
-#登陆（登陆成功的时候将user写入浏览器cookie）
-def login(request):
+#登陆（id登陆成功的时候将user写入浏览器cookie）
+def loginid(request):
     if request.method == 'POST':
-        user = request.POST.get('user')
+        user = request.POST.get('user_id')
         password = request.POST.get('password')
         #与数据库内比较
         check = User.objects.filter(user_id=user, user_password=password)
         if check:
-            response = True
-            response.set_cookie('user', user)
+            a = User.objects.get(user_id=user).user_img
+            result = {"success" : True , "user_img" : a}
+            result.set_cookie('user', user)
+            JsonResponse(result)
         else:
-            response = False
+            result = {"success": False}
+            JsonResponse(result)
+
+#登陆（phone）
+def loginphone(request):
+    if request.method == 'POST':
+        phone = request.POST.get('phone')
+        password = request.POST.get('password')
+        #与数据库内比较
+        check = User.objects.filter(user_phone=phone, user_password=password)
+        if check:
+            a = User.objects.get(user_phone=phone).user_img
+            b = User.objects.get(user_phone=phone).user_id
+            result = {"success" : True , "user_img" : a}
+            result.set_cookie('user', b)
+            JsonResponse(result)
+        else:
+            result = False
+            JsonResponse(result)
 
 #判断登陆
 def iflogged(request):
     username = request.COOKIES.get('user')
     if not username:
-        result = {"iflogged" : False}
+        result = {"success" : False}
         return JsonResponse(result)
     else:
-        result = {"iflogged": True}
+        result = {"success": True}
         return JsonResponse(result)
 
 #上传头像
 def upload_avatar(request):
     if request.method == 'POST':
-        user = request.POST.get('user')
+        user = request.POST.get('user_id')
         a = User.objects.get(user_id=user)
-        a.user_img = request.FILES.get('img')
+        a.user_img = request.FILES.get('user_img')
         a.save()
+        result = {"success": True}
+        JsonResponse(result)
 
 #退出登陆
 def logout(request):
-    response = "logout"
-    response.delete_cookie('user')
-    return JsonResponse(response)
+    if request.method == 'POST':
+        result = "logout"
+        result.delete_cookie('user')
+        return JsonResponse(result)
 
-########################################################
+#获取用户统计信息
+def getSta(request):
+    if request.method == 'POST':
+        user = request.POST.get('user_id')
+        num = Statistics.objects.get(user).sta_num
+        total = Statistics.objects.get(user).sta_total_money
+        average = Statistics.objects.get(user).sta_average_money
+        result = {"number":num , "total": total, "average" : average}
+        JsonResponse(result)
+
 # 6.上传发票图片
 def uploadInvoicePic(request):
     if request.method == 'POST':
@@ -171,4 +210,5 @@ def jsonResponse(judge, num):
     else:
         result = {"mes": "CRUD_num error!"}
     return result
+
 
