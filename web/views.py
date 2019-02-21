@@ -10,23 +10,19 @@ from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
 from django.core import serializers
 
-class InvoiceEncoder(json. JSONEncoder):
-  def default(self, obj):
-    # if isinstance(obj, Invoice):
-        #   return obj.inv_img
-    return json.JSONEncoder.default(self, obj)
-
 # with open('1.jpg', 'rb') as f:  # 以二进制读取本地图片
 #     data = f.read()
 #     encodestr = str(base64.b64encode(data),'utf-8')
+
 #请求头
 headers = {
          'Authorization': '367503ca0d38462c93ad694cf9ef9162',
          'Content-Type': 'application/json; charset=UTF-8'
     }
+
 def posturl(url,data={}):
   try:
-    params = json.dumps(dict, cls=InvoiceEncoder).encode(encoding='UTF8')
+    params = json.dumps(dict).encode(encoding='UTF8')
     req = urllib.request.Request(url, params, headers)
     r = urllib.request.urlopen(req)
     html = r.read()
@@ -150,29 +146,40 @@ def getSta(request):
 def uploadInvoicePic(request):
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
-        # 上传发票
+        inv_img = request.FILES.get('inv_img')
+        # 二维码识别
+        os.system('/root/lrl/main' + ' /root/yk/static/media/inv_img/' + str(inv_img) + ' /root/lrl/result.txt')
+        f = open('/root/lrl/result.txt')
+        line = f.readline()
+        list = []
+        while line:
+            print(line, end = '')
+            list.append(line.strip('\n'))
+            line = f.readline()
+        f.close()
+        print(list)
         new_Invoice = Invoice(
             user_id=user_id,
-            inv_img=request.FILES.get('inv_img'),
-            inv_money=0
+            inv_img=inv_img,
+            inv_numd=list[0],
+            inv_numh=list[1],
+            inv_money=list[2],
+            inv_date=list[3]
         )
         new_Invoice.save()
-        # 二维码识别
-        # os.system('cd /root/lrl')
-        # os.system('./code /root/lrl/text.jpg /root/lrl/result.txt')
         # 发票识别(阿里云)
-        file = open('/root/yk/static/media/' + str(new_Invoice.inv_img), 'rb')
-        try:
-            data = file.read()
-        finally:
-            file.close()
-        encodestr = str(base64.b64encode(data), 'utf-8')
-        url_request = "https://ocrapi-invoice.taobao.com/ocrservice/invoice"
-        dict = {'img': encodestr}
-        html = posturl(url_request, data=dict)
-        print(html)
+        # file = open('/root/yk/static/media/' + str(new_Invoice.inv_img), 'rb')
+        # try:
+        #     data = file.read()
+        # finally:
+        #     file.close()
+        # encodestr = str(base64.b64encode(data), 'utf-8')
+        # url_request = "https://ocrapi-invoice.taobao.com/ocrservice/invoice"
+        # dict = {'img': encodestr}
+        # html = posturl(url_request, data=dict)
+        # print(html)
         result = {"success": True, "mes": "添加成功！", "inv_img": str(new_Invoice.inv_img),
-                  "id": str(new_Invoice.id), 'html': html}
+                  "id": str(new_Invoice.id)}
         return JsonResponse(result)
 
 # 7.修改发票代码
