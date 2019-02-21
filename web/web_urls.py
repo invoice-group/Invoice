@@ -10,7 +10,6 @@ urlpatterns = [
     path('modifyInvoiceNum/', views.modifyInvoiceNum),
     path('modifyInvoiceDate/', views.modifyInvoiceDate),
     path('retrieveInvoicePic/', views.retrieveInvoicePic),
-    path('deleteInvoicePic/', views.deleteInvoicePic),
     path('deleteInvoice/', views.deleteInvoice),
 
     path('register/', views.register),

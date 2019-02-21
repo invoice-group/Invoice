@@ -1,8 +1,41 @@
 #-*- coding: utf-8 -*-
+import os
+import urllib.request
+import urllib.parse
 import json
+import time
+import base64
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
+from django.core import serializers
+
+class InvoiceEncoder(json. JSONEncoder):
+  def default(self, obj):
+    # if isinstance(obj, Invoice):
+        #   return obj.inv_img
+    return json.JSONEncoder.default(self, obj)
+
+# with open('1.jpg', 'rb') as f:  # 以二进制读取本地图片
+#     data = f.read()
+#     encodestr = str(base64.b64encode(data),'utf-8')
+#请求头
+headers = {
+         'Authorization': '367503ca0d38462c93ad694cf9ef9162',
+         'Content-Type': 'application/json; charset=UTF-8'
+    }
+def posturl(url,data={}):
+  try:
+    params = json.dumps(dict, cls=InvoiceEncoder).encode(encoding='UTF8')
+    req = urllib.request.Request(url, params, headers)
+    r = urllib.request.urlopen(req)
+    html = r.read()
+    r.close()
+    return html.decode("utf8")
+  except urllib.error.HTTPError as e:
+      print(e.code)
+      print(e.read().decode("utf8"))
+  time.sleep(1)
 
 def test(request):
     if(request.method=="POST"):
@@ -17,26 +50,31 @@ def test(request):
 #注册
 def register(request):
     if request.method == 'POST':
+        # json_data = json.load(request)
+        # user = json_data['user_id']
+        # password = json_data['password']
+        # phone = json_data['phone']
         user = request.POST.get('user_id')
         password = request.POST.get('password')
         phone = request.POST.get('phone')
         check1 = User.objects.filter(user_id=user)
         check2 = User.objects.filter(user_phone=phone)
         if check1:
-            result = {"success":False, "mes":"user_id"}
-            JsonResponse(result)
+            result = {"success": False, "mes":"user_id"}
+            return JsonResponse(result)
         elif check2:
             result = {"success": False, "mes": "phone"}
-            JsonResponse(result)
+            return JsonResponse(result)
         else:
-            user = User(
+            new_user = User(
                 user_id=user,
                 user_password=password,
                 user_phone=phone
             )
-            user.save()
+            new_user.save()
             result = {"success": True, "mes": "注册成功"}
-            JsonResponse(result)
+            return JsonResponse(result)
+    return render(request, "index.html")
 
 #登陆（id登陆成功的时候将user写入浏览器cookie）
 def loginid(request):
@@ -64,12 +102,12 @@ def loginphone(request):
         if check:
             a = User.objects.get(user_phone=phone).user_img
             b = User.objects.get(user_phone=phone).user_id
-            result = {"success" : True , "user_img" : a}
-            result.set_cookie('user', b)
-            JsonResponse(result)
+            result = {"success" : True , "user_img" : "lch"}
+            #result.set_cookie('user', b)
+            return JsonResponse(result, safe=False)
         else:
             result = False
-            JsonResponse(result)
+            return JsonResponse(result, safe=False)
 
 #判断登陆
 def iflogged(request):
@@ -89,7 +127,7 @@ def upload_avatar(request):
         a.user_img = request.FILES.get('user_img')
         a.save()
         result = {"success": True}
-        JsonResponse(result)
+        return JsonResponse(result)
 
 #退出登陆
 def logout(request):
@@ -108,80 +146,84 @@ def getSta(request):
         result = {"number":num , "total": total, "average" : average}
         JsonResponse(result)
 
-# 6.上传发票图片
+# 6.上传发票图片(并进行识别)
 def uploadInvoicePic(request):
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
-        judge = Invoice.objects.filter(user_id=user_id)
-        if (judge):
-            img_invoice = Invoice(inv_img=request.FILES.get('invoice_img'))
-            img_invoice.save()
-        result = jsonResponse(judge, 0)
+        # 上传发票
+        new_Invoice = Invoice(
+            user_id=user_id,
+            inv_img=request.FILES.get('inv_img'),
+            inv_money=0
+        )
+        new_Invoice.save()
+        # 二维码识别
+        # os.system('cd /root/lrl')
+        # os.system('./code /root/lrl/text.jpg /root/lrl/result.txt')
+        # 发票识别(阿里云)
+        file = open('/root/yk/static/media/' + str(new_Invoice.inv_img), 'rb')
+        try:
+            data = file.read()
+        finally:
+            file.close()
+        encodestr = str(base64.b64encode(data), 'utf-8')
+        url_request = "https://ocrapi-invoice.taobao.com/ocrservice/invoice"
+        dict = {'img': encodestr}
+        html = posturl(url_request, data=dict)
+        print(html)
+        result = {"success": True, "mes": "添加成功！", "inv_img": str(new_Invoice.inv_img),
+                  "id": str(new_Invoice.id), 'html': html}
         return JsonResponse(result)
 
 # 7.修改发票代码
 def modifyInvoiceCode(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        inv_numh = request.POST.get('inv_numh')
-        judge = Invoice.objects.filter(user_id=user_id).update(inv_numh=inv_numh)
+        id = request.POST.get('id')
+        inv_numd = request.POST.get('inv_numd')
+        judge = Invoice.objects.filter(id=id).update(inv_numd=inv_numd)
         result = jsonResponse(judge, 2)
         return JsonResponse(result)
 
-# 8.修改发票类别
+# 8.修改发票号码
 def modifyInvoiceType(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        inv_class = request.POST.get('inv_class')
-        judge = Invoice.objects.filter(user_id=user_id).update(inv_class=inv_class)
+        id = request.POST.get('id')
+        inv_numh = request.POST.get('inv_numh')
+        judge = Invoice.objects.filter(id=id).update(inv_numh=inv_numh)
         result = jsonResponse(judge, 2)
         return JsonResponse(result)
 
 # 9. 修改发票金额
 def modifyInvoiceNum(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
+        id = request.POST.get('id')
         inv_money = request.POST.get('inv_money')
-        judge = Invoice.objects.filter(user_id=user_id).update(inv_money=inv_money)
+        judge = Invoice.objects.filter(id=id).update(inv_money=inv_money)
         result = jsonResponse(judge, 2)
         return JsonResponse(result)
 
 # 10. 修改发票日期
 def modifyInvoiceDate(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
+        id = request.POST.get('id')
         inv_date = request.POST.get('inv_date')
-        judge = Invoice.objects.filter(user_id=user_id).update(inv_date=inv_date)
+        judge = Invoice.objects.filter(id=id).update(inv_date=inv_date)
         result = jsonResponse(judge, 2)
         return JsonResponse(result)
 
-# 11.查看用户所有上传发票图片
+# 11.查看用户所有上传发票图片(信息)
 def retrieveInvoicePic(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        judge = Invoice.objects.filter(user_id=user_id)
-        if (judge):
-            imgs = Invoice.objects.all()  # 从数据库中取出所有的图片路径
-            result = jsonResponse(judge, 3)
-            result.update({'invoice_img': imgs})
-            return JsonResponse(result)
+        new_imgs = serializers.serialize("json", Invoice.objects.all().order_by("id"))  # 从数据库中取出所有的图片路径
+        result = jsonResponse(True, 3)
+        result.update({'new_imgs': new_imgs})
+        return JsonResponse(result)
 
-# 12. 删除某位用户上传的发票图片
-def deleteInvoicePic(request):
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        judge = Invoice.objects.filter(user_id=user_id)
-        if (judge):
-            result = Invoice.inv_img.delete()
-            result = jsonResponse(result)
-        return JsonResponse(result, 1)
-
-# 13.删除发票(删除某一指定发票代码的发票信息)
+# 12.删除发票(删除某一指定发票代码的发票信息)
 def deleteInvoice(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        inv_numh = request.POST.get('inv_numh')
-        judge = Invoice.objects.filter(user_id=user_id, inv_numh=inv_numh).delete()
+        id = request.POST.get('id')
+        judge = Invoice.objects.filter(id=id).delete()
         result = jsonResponse(judge, 1)
         return JsonResponse(result)
 
