@@ -40,7 +40,6 @@ def test(request):
         print(user)
         result = {"success" : True , "mes" : "测试成功！"}
         return JsonResponse(result)
-
     return render(request, "index.html")
 
 #注册
@@ -56,10 +55,10 @@ def register(request):
         check1 = User.objects.filter(user_id=user)
         check2 = User.objects.filter(user_phone=phone)
         if check1:
-            result = {"success": False, "mes":"user_id"}
+            result = {"success": False, "mes":"该用户名已被注册"}
             return JsonResponse(result)
         elif check2:
-            result = {"success": False, "mes": "phone"}
+            result = {"success": False, "mes": "该手机号已被注册"}
             return JsonResponse(result)
         else:
             new_user = User(
@@ -80,13 +79,15 @@ def loginid(request):
         #与数据库内比较
         check = User.objects.filter(user_id=user, user_password=password)
         if check:
-            a = User.objects.get(user_id=user).user_img
-            result = {"success" : True , "user_img" : a}
-            result.set_cookie('user', user)
-            JsonResponse(result)
+            img = User.objects.get(user_id=user).user_img
+            id = User.objects.get(user_id=user).user_id
+            result = {"success": True, "user_img": "lch"}
+            response = JsonResponse(result)
+            response.set_cookie("user", id, 604800)
+            return response
         else:
             result = {"success": False}
-            JsonResponse(result)
+            return JsonResponse(result)
 
 #登陆（phone）
 def loginphone(request):
@@ -96,30 +97,39 @@ def loginphone(request):
         #与数据库内比较
         check = User.objects.filter(user_phone=phone, user_password=password)
         if check:
-            a = User.objects.get(user_phone=phone).user_img
-            b = User.objects.get(user_phone=phone).user_id
-            result = {"success" : True , "user_img" : "lch"}
-            #result.set_cookie('user', b)
-            return JsonResponse(result, safe=False)
+            img = User.objects.get(user_phone=phone).user_img
+            id = User.objects.get(user_phone=phone).user_id
+            print(str(img))
+            result = {"success": True, "user_img": str(img)}
+            response = JsonResponse(result, safe=False)
+            response.set_cookie("user", id, 604800)
+            return response
+
         else:
-            result = False
-            return JsonResponse(result, safe=False)
+            check2 = User.objects.filter(user_phone=phone)
+            if check2:
+                result = {"success": False, "mes": "密码错误"}
+                return JsonResponse(result)
+            else:
+                result = {"success": False, "mes": "不存在该账号"}
+                return JsonResponse(result)
 
 #判断登陆
 def iflogged(request):
-    username = request.COOKIES.get('user')
-    if not username:
-        result = {"success" : False}
+    cookies = request.COOKIES.get('user')
+    check = User.objects.get(user_id=cookies)
+    if check is None:
+        result = {"success": False}
         return JsonResponse(result)
     else:
-        result = {"success": True}
+        result = {"success": True, "user_id": check.user_id, "img_path": str(check.user_img), "number": Statistics.objects.get(sta_user_id=check.user_id).sta_num}
         return JsonResponse(result)
 
 #上传头像
 def upload_avatar(request):
     if request.method == 'POST':
         user = request.POST.get('user_id')
-        a = User.objects.get(user_id=user)
+        a = User.objects.filter(user_id=user)
         a.user_img = request.FILES.get('user_img')
         a.save()
         result = {"success": True}
@@ -128,9 +138,16 @@ def upload_avatar(request):
 #退出登陆
 def logout(request):
     if request.method == 'POST':
-        result = "logout"
-        result.delete_cookie('user')
-        return JsonResponse(result)
+        cookies = request.COOKIES.get('user')
+        check = User.objects.filter(user_id=cookies)
+        if check:
+            result = {"flag" : 1,"mes": "退出成功"}
+            response = JsonResponse(result)
+            response.delete_cookie('user')
+            return response
+        else:
+            result = {"flag" : 2,"mes": "请先登陆再退出"}
+            return JsonResponse(result)
 
 #获取用户统计信息
 def getSta(request):
@@ -140,33 +157,80 @@ def getSta(request):
         total = Statistics.objects.get(user).sta_total_money
         average = Statistics.objects.get(user).sta_average_money
         result = {"number":num , "total": total, "average" : average}
-        JsonResponse(result)
+        return JsonResponse(result)
 
-# 6.上传发票图片(并进行识别)
-def uploadInvoicePic(request):
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        inv_img = request.FILES.get('inv_img')
-        # 二维码识别
-        os.system('/root/lrl/main' + ' /root/yk/static/media/inv_img/' + str(inv_img) + ' /root/lrl/result.txt')
-        f = open('/root/lrl/result.txt')
+# 二维码识别
+def QRCodeRecognise(id, user_id, inv_img):
+    os.system('/root/lrl/main' + ' /root/yk/static/media/inv_img/' + str(inv_img) + ' /root/lrl/result.txt')
+    f = open('/root/lrl/result.txt')
+    line = f.readline()
+    list = []
+    while line:
+        print(line, end='')
+        list.append(line.strip('\n'))
         line = f.readline()
-        list = []
-        while line:
-            print(line, end = '')
-            list.append(line.strip('\n'))
-            line = f.readline()
-        f.close()
-        print(list)
-        new_Invoice = Invoice(
-            user_id=user_id,
-            inv_img=inv_img,
+    f.close()
+    print(list)
+    if len(list) == 4:
+        Invoice.objects.filter(id=id).update(
             inv_numd=list[0],
             inv_numh=list[1],
             inv_money=list[2],
             inv_date=list[3]
         )
-        new_Invoice.save()
+        return True
+    else:
+        Invoice.objects.filter(id=id).delete()
+        return False
+
+# 6.上传发票图片(并进行识别)
+def uploadInvoicePic(request):
+    if request.method == 'POST':
+        cookies = request.COOKIES.get('user')
+        check = User.objects.filter(user_id=cookies)
+        if check:
+            user_id = request.POST.get('user_id')
+            inv_img = request.FILES.get('inv_img')
+            new_Invoice = Invoice(
+                user_id=user_id,
+                inv_img=inv_img,
+                inv_money=0
+            )
+            new_Invoice.save()
+            # 二维码识别
+            flag = QRCodeRecognise(new_Invoice.id, user_id, inv_img)
+            Sta_check = Statistics.objects.filter(sta_user_id=user_id)
+            if Sta_check:
+                num = Statistics.objects.get(sta_user_id=user_id).sta_num + 1
+                total_money = Statistics.objects.get(sta_user_id=user_id).sta_total_money
+                Statistics.objects.filter(sta_user_id=user_id).update(sta_num= num)
+                # 修改total_money
+                money = Invoice.objects.get(id=new_Invoice.id).inv_money # 新上传发票的金额
+                new_total_money = total_money + money  # 新的总额
+                Statistics.objects.filter(sta_user_id=user_id).update(sta_total_money=new_total_money)
+                Statistics.objects.filter(sta_user_id=user_id).update(sta_average_money=new_total_money/num)
+
+                # Sta_check.num += 1
+                # Sta_check.sta_total_money += new_Invoice.inv_money
+                # Sta_check.sta_average_money = Sta_check.sta_total_money/Sta_check.num
+            else:
+                new_Sta = Statistics(
+                    sta_user_id=user_id,
+                    sta_num=1,
+                    sta_total_money=Invoice.objects.get(id=new_Invoice.id).inv_money,
+                    sta_average_money=Invoice.objects.get(id=new_Invoice.id).inv_money
+                )
+                new_Sta.save()
+            if flag:
+                result = {"success": True, "mes": "添加成功！", "inv_img": str(new_Invoice.inv_img),
+                          "id": str(new_Invoice.id)}
+                return JsonResponse(result)
+            else:
+                result = {"success": False, "mes": "无法读取文件！"}
+                return JsonResponse(result)
+        else:
+            result = {"flag": 2, "mes": "cookie失效"}
+            return JsonResponse(result)
         # 发票识别(阿里云)
         # file = open('/root/yk/static/media/' + str(new_Invoice.inv_img), 'rb')
         # try:
@@ -178,9 +242,6 @@ def uploadInvoicePic(request):
         # dict = {'img': encodestr}
         # html = posturl(url_request, data=dict)
         # print(html)
-        result = {"success": True, "mes": "添加成功！", "inv_img": str(new_Invoice.inv_img),
-                  "id": str(new_Invoice.id)}
-        return JsonResponse(result)
 
 # 7.修改发票代码
 def modifyInvoiceCode(request):
@@ -205,7 +266,16 @@ def modifyInvoiceNum(request):
     if request.method == 'POST':
         id = request.POST.get('id')
         inv_money = request.POST.get('inv_money')
+        old_money = Invoice.objects.get(id=id).inv_money
         judge = Invoice.objects.filter(id=id).update(inv_money=inv_money)
+        if judge:
+            user_id = Invoice.objects.get(id=id).user_id
+            total_money = Statistics.objects.get(sta_user_id=user_id).sta_total_money
+            result = total_money - old_money + Invoice.objects.get(id=id).inv_money
+            Statistics.objects.filter(sta_user_id=user_id).update(sta_total_money = result)
+            new_total_money = Statistics.objects.get(sta_user_id=user_id).sta_total_money
+            num = Statistics.objects.get(sta_user_id=user_id).sta_num
+            Statistics.objects.filter(sta_user_id=user_id).update(sta_average_money = new_total_money/num)
         result = jsonResponse(judge, 2)
         return JsonResponse(result)
 
@@ -221,18 +291,38 @@ def modifyInvoiceDate(request):
 # 11.查看用户所有上传发票图片(信息)
 def retrieveInvoicePic(request):
     if request.method == 'POST':
-        new_imgs = serializers.serialize("json", Invoice.objects.all().order_by("id"))  # 从数据库中取出所有的图片路径
-        result = jsonResponse(True, 3)
-        result.update({'new_imgs': new_imgs})
-        return JsonResponse(result)
+        cookies = request.COOKIES.get('user')
+        check = User.objects.filter(user_id=cookies)
+        if check:
+            new_imgs = serializers.serialize("json", Invoice.objects.filter(user_id=cookies).order_by("id"))  # 从数据库中取出所有的图片路径
+            result = jsonResponse(True, 3)
+            result.update({'new_imgs': new_imgs})
+            return JsonResponse(result)
+        else:
+            result = {"flag": 2, "mes": "cookie失效"}
+            return JsonResponse(result)
 
 # 12.删除发票(删除某一指定发票代码的发票信息)
 def deleteInvoice(request):
     if request.method == 'POST':
         id = request.POST.get('id')
+        inv_money = Invoice.objects.get(id=id).inv_money
+        # 更新statistics
+        user_id = Invoice.objects.get(id=id).user_id
+        total_money = Statistics.objects.get(sta_user_id=user_id).sta_total_money
+        Statistics.objects.filter(sta_user_id=user_id).update(sta_total_money=total_money - inv_money)
+        new_total_money = Statistics.objects.get(sta_user_id=user_id).sta_total_money
+        num = Statistics.objects.get(sta_user_id=user_id).sta_num - 1
+        if num!=0:
+            Statistics.objects.filter(sta_user_id=user_id).update(sta_average_money=new_total_money / num)
+        else:
+            Statistics.objects.filter(sta_user_id=user_id).update(sta_average_money=0)
+        Statistics.objects.filter(sta_user_id=user_id).update(sta_num= num)
+
         judge = Invoice.objects.filter(id=id).delete()
-        result = jsonResponse(judge, 1)
-        return JsonResponse(result)
+        if judge:
+            result = jsonResponse(judge, 1)
+            return JsonResponse(result)
 
 # 返回JSON数据，num = {0,1,2,3} == CRUD
 def jsonResponse(judge, num):
