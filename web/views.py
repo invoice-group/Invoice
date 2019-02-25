@@ -7,7 +7,7 @@ import urllib.parse
 import json
 import time
 from web.invoice_tool import invoice_rec
-import chinese_ocr
+# import chinese_ocr
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
@@ -217,7 +217,7 @@ def uploadInvoicePic(request):
     if request.method == 'POST':
         cookies = request.COOKIES.get('user')
         check = User.objects.filter(user_id=cookies)
-        if True:
+        if check:
             user_id = request.POST.get('user_id')
             inv_img = request.FILES.get('inv_img')
             new_Invoice = Invoice(
@@ -325,7 +325,7 @@ def retrieveInvoicePic(request):
             result = {"flag": 2, "mes": "cookie失效"}
             return JsonResponse(result)
 
-# 12.删除发票(删除某一指定发票代码的发票信息)
+# 12.删除发票(删除某一指定发票的发票信息)
 def deleteInvoice(request):
     if request.method == 'POST':
         id = request.POST.get('id')
