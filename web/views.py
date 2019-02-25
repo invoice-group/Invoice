@@ -133,7 +133,7 @@ def iflogged(request):
 def upload_avatar(request):
     if request.method == 'POST':
         user = request.POST.get('user_id')
-        a = User.objects.filter(user_id=user)
+        a = User.objects.get(user_id=user)
         a.user_img = request.FILES.get('user_img')
         a.save()
         result = {"success": True}
