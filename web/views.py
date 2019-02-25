@@ -1,10 +1,13 @@
 #-*- coding: utf-8 -*-
 import os
+import sys
+sys.path.append(os.getcwd() + '/chinese_ocr')
 import urllib.request
 import urllib.parse
 import json
 import time
-import base64
+from web.invoice_tool import invoice_rec
+import chinese_ocr
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
@@ -117,12 +120,13 @@ def loginphone(request):
 #判断登陆
 def iflogged(request):
     cookies = request.COOKIES.get('user')
-    check = User.objects.get(user_id=cookies)
-    if check is None:
-        result = {"success": False}
+    check = User.objects.filter(user_id=cookies)
+    if check:
+        result = {"success": True, "user_id": cookies, "img_path": str(User.objects.get(user_id=cookies).user_img),
+                  "number": Statistics.objects.get(sta_user_id=cookies).sta_num}
         return JsonResponse(result)
     else:
-        result = {"success": True, "user_id": check.user_id, "img_path": str(check.user_img), "number": Statistics.objects.get(sta_user_id=check.user_id).sta_num}
+        result = {"success": False}
         return JsonResponse(result)
 
 #上传头像
@@ -153,15 +157,20 @@ def logout(request):
 def getSta(request):
     if request.method == 'POST':
         user = request.POST.get('user_id')
-        num = Statistics.objects.get(user).sta_num
-        total = Statistics.objects.get(user).sta_total_money
-        average = Statistics.objects.get(user).sta_average_money
-        result = {"number":num , "total": total, "average" : average}
-        return JsonResponse(result)
+        check = Statistics.objects.filter(sta_user_id=user)
+        if check:
+            num = Statistics.objects.get(sta_user_id=user).sta_num
+            total = Statistics.objects.get(sta_user_id=user).sta_total_money
+            average = Statistics.objects.get(sta_user_id=user).sta_average_money
+            result = {"flag": 1, "number": num, "total": total, "average": average}
+            return JsonResponse(result)
+        else:
+            result = {"flag": 2, "mes": "你还没有上传过任何发票"}
+            return JsonResponse(result)
 
 # 二维码识别
-def QRCodeRecognise(id, user_id, inv_img):
-    os.system('/root/lrl/main' + ' /root/yk/static/media/inv_img/' + str(inv_img) + ' /root/lrl/result.txt')
+def QRCodeRecognise(id, inv_img):
+    os.system('/root/lrl/main' + ' /root/yk/static/media/' + str(inv_img) + ' /root/lrl/result.txt')
     f = open('/root/lrl/result.txt')
     line = f.readline()
     list = []
@@ -178,9 +187,29 @@ def QRCodeRecognise(id, user_id, inv_img):
             inv_money=list[2],
             inv_date=list[3]
         )
+        print("二维码识别成功！")
         return True
     else:
         Invoice.objects.filter(id=id).delete()
+        print("二维码识别失败！")
+        return False
+
+# 发票识别
+def InvoiceRecognize(id, inv_img):
+    dict = invoice_rec('/root/yk/static/media/' + str(inv_img))
+    print(dict)
+    if len(dict) == 16:
+        Invoice.objects.filter(id=id).update(
+            inv_numd=dict['发票代码'],
+            inv_numh=dict['发票号码'],
+            inv_money=dict['发票金额'],
+            inv_date=dict['开票日期']
+        )
+        print('发票识别成功！')
+        return True
+    else:
+        Invoice.objects.filter(id=id).delete()
+        print('发票识别失败！')
         return False
 
 # 6.上传发票图片(并进行识别)
@@ -188,7 +217,7 @@ def uploadInvoicePic(request):
     if request.method == 'POST':
         cookies = request.COOKIES.get('user')
         check = User.objects.filter(user_id=cookies)
-        if check:
+        if True:
             user_id = request.POST.get('user_id')
             inv_img = request.FILES.get('inv_img')
             new_Invoice = Invoice(
@@ -197,8 +226,13 @@ def uploadInvoicePic(request):
                 inv_money=0
             )
             new_Invoice.save()
+
             # 二维码识别
-            flag = QRCodeRecognise(new_Invoice.id, user_id, inv_img)
+            flag = QRCodeRecognise(new_Invoice.id, new_Invoice.inv_img)
+            if flag == False:
+                # 发票识别
+                flag = InvoiceRecognize(new_Invoice.id, new_Invoice.inv_img)
+
             Sta_check = Statistics.objects.filter(sta_user_id=user_id)
             if Sta_check:
                 num = Statistics.objects.get(sta_user_id=user_id).sta_num + 1
@@ -231,17 +265,6 @@ def uploadInvoicePic(request):
         else:
             result = {"flag": 2, "mes": "cookie失效"}
             return JsonResponse(result)
-        # 发票识别(阿里云)
-        # file = open('/root/yk/static/media/' + str(new_Invoice.inv_img), 'rb')
-        # try:
-        #     data = file.read()
-        # finally:
-        #     file.close()
-        # encodestr = str(base64.b64encode(data), 'utf-8')
-        # url_request = "https://ocrapi-invoice.taobao.com/ocrservice/invoice"
-        # dict = {'img': encodestr}
-        # html = posturl(url_request, data=dict)
-        # print(html)
 
 # 7.修改发票代码
 def modifyInvoiceCode(request):
