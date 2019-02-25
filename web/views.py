@@ -7,7 +7,7 @@ import urllib.parse
 import json
 import time
 from web.invoice_tool import invoice_rec
-# import chinese_ocr
+import chinese_ocr
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
