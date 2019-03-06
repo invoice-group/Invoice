@@ -7,7 +7,7 @@ import urllib.parse
 import json
 import time
 from web.invoice_tool import invoice_rec
-import chinese_ocr
+# import chinese_ocr
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from web.models import User, Invoice, Statistics
@@ -45,7 +45,7 @@ def test(request):
         return JsonResponse(result)
     return render(request, "index.html")
 
-#注册
+# 注册
 def register(request):
     if request.method == 'POST':
         # json_data = json.load(request)
@@ -70,6 +70,13 @@ def register(request):
                 user_phone=phone
             )
             new_user.save()
+            new_statistics = Statistics(
+                sta_user_id=user,
+                sta_num=0,
+                sta_average_money=0,
+                sta_total_money=0
+            )
+            new_statistics.save()
             result = {"success": True, "mes": "注册成功"}
             return JsonResponse(result)
     return render(request, "index.html")
@@ -205,6 +212,9 @@ def InvoiceRecognize(id, inv_img):
             inv_money=dict['发票金额'],
             inv_date=dict['开票日期']
         )
+        # Invoice.save()
+        print(type(dict['发票金额']))
+        print(dict['发票金额'])
         print('发票识别成功！')
         return True
     else:
@@ -228,10 +238,11 @@ def uploadInvoicePic(request):
             new_Invoice.save()
 
             # 二维码识别
-            flag = QRCodeRecognise(new_Invoice.id, new_Invoice.inv_img)
+            # 发票识别
+            flag = InvoiceRecognize(new_Invoice.id, new_Invoice.inv_img)
             if flag == False:
-                # 发票识别
-                flag = InvoiceRecognize(new_Invoice.id, new_Invoice.inv_img)
+                flag = QRCodeRecognise(new_Invoice.id, new_Invoice.inv_img)
+
 
             Sta_check = Statistics.objects.filter(sta_user_id=user_id)
             if Sta_check:
@@ -317,7 +328,7 @@ def retrieveInvoicePic(request):
         cookies = request.COOKIES.get('user')
         check = User.objects.filter(user_id=cookies)
         if check:
-            new_imgs = serializers.serialize("json", Invoice.objects.filter(user_id=cookies).order_by("id"))  # 从数据库中取出所有的图片路径
+            new_imgs = serializers.serialize("json", Invoice.objects.filter(user_id=cookies).order_by("-id"))  # 从数据库中取出所有的图片路径
             result = jsonResponse(True, 3)
             result.update({'new_imgs': new_imgs})
             return JsonResponse(result)
