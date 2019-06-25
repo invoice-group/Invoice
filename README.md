@@ -6,13 +6,12 @@
 ### 项目成果展示
 * 移动端
 
-![9dee93f6f220ee42df2a8aa90b0d5628.png](en-resource://database/1605:0)
-![2dcdbd297b2f3e5753cd97e3639222e6.png](en-resource://database/1607:0)
+![image](https://github.com/invoice-group/Invoice/blob/master/pics/%E5%9B%BE%E7%89%872.png)
+![image](https://github.com/invoice-group/Invoice/blob/master/pics/%E5%9B%BE%E7%89%873.png)
 
 * 后台
 
-![cc85f54392630bd69c5393552f36eaea.png](en-resource://database/1609:0)
-
+![image](https://github.com/invoice-group/Invoice/blob/master/pics/%E5%9B%BE%E7%89%874.png)
 
 ### 应用技术说明
 *  二维码识别：qrcode
